@@ -137,7 +137,7 @@ You can also use `docker run -it <image-name> sh` for example `docker run -it bu
 - Docker Server creates the usable docker image based on the docker file
 
 Steps for creating a Dockerfile:
-- Specify a base image
+- Specify a base image. A based image is an image that is most useful for building the image that we want to build. On alpine, `apk` is a package manager. 
 - Run some commands to install additional programs
 - Specify a command to run on container startup
 
@@ -145,7 +145,7 @@ Example:
 
 ```
 # Use an existing docker image as a base
-FROM alpine
+FROM alpine 
 
 # Download and install a dependency
 RUN apk add --update redis
@@ -153,18 +153,159 @@ RUN apk add --update redis
 #Tell the image what to do when it starts as a container
 CMD ["redis-server"]
 ```
-
-`>>>docker build .`
-
 ![](readme_images/docker_build.png)
 
+```
+>>>docker build .
+Sending build context to Docker daemon  2.048kB
+Step 1/3 : FROM alpine
+latest: Pulling from library/alpine
+9d48c3bd43c5: Pull complete 
+Digest: sha256:72c42ed48c3a2db31b7dafe17d275b634664a708d901ec9fd57b1529280f01fb
+Status: Downloaded newer image for alpine:latest
+ ---> 961769676411 
+Step 2/3 : RUN apk add --update redis
+ ---> Running in 7287bca897e6 
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/community/x86_64/APKINDEX.tar.gz
+(1/1) Installing redis (5.0.5-r0)
+Executing redis-5.0.5-r0.pre-install
+Executing redis-5.0.5-r0.post-install
+Executing busybox-1.30.1-r2.trigger
+OK: 7 MiB in 15 packages
+Removing intermediate container 7287bca897e6
+ ---> 527f32af8c21 
+Step 3/3 : CMD ["redis-server"]
+ ---> Running in e75b1cc5c561
+Removing intermediate container e75b1cc5c561
+ ---> cf77bdfe2f66
+Successfully built cf77bdfe2f66
+```
+![](readme_images/base1.png)
+![](readme_images/base2.png)
 
-### Base Image
+
+
+### Rebuilding an image from cache
+If some parts of the docker build process are the same as an image built previously, Docker will use commands from the cached version of the previously built image. The building process only builds from the changed line down.
+
+```
+# Use an existing docker image as a base
+FROM alpine
+
+# Download and install a dependency
+RUN apk add --update redis
+RUN apk add --update gcc #added line
+
+#Tell the image what to do when it starts as a container
+CMD ["redis-server"]
+```
+When we build the image the second time we get:
+
+```
+>>>docker build .
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM alpine
+ ---> 961769676411
+Step 2/4 : RUN apk add --update redis
+ ---> Using cache
+ ---> 527f32af8c21
+Step 3/4 : RUN apk add --update gcc
+ ---> Running in 9119b50e6acc
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/community/x86_64/APKINDEX.tar.gz
+(1/10) Installing binutils (2.32-r0)
+(2/10) Installing gmp (6.1.2-r1)
+(3/10) Installing isl (0.18-r0)
+(4/10) Installing libgomp (8.3.0-r0)
+(5/10) Installing libatomic (8.3.0-r0)
+(6/10) Installing libgcc (8.3.0-r0)
+(7/10) Installing mpfr3 (3.1.5-r1)
+(8/10) Installing mpc1 (1.1.0-r0)
+(9/10) Installing libstdc++ (8.3.0-r0)
+(10/10) Installing gcc (8.3.0-r0)
+Executing busybox-1.30.1-r2.trigger
+OK: 93 MiB in 25 packages
+Removing intermediate container 9119b50e6acc
+ ---> 265253d750a9
+Step 4/4 : CMD ["redis-server"]
+ ---> Running in 654bf84d16f8
+Removing intermediate container 654bf84d16f8
+ ---> 19854053470b
+Successfully built 19854053470b
+```
+
+Building it a third time we get:
+
+```
+>>>docker build .
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM alpine
+ ---> 961769676411
+Step 2/4 : RUN apk add --update redis
+ ---> Using cache
+ ---> 527f32af8c21
+Step 3/4 : RUN apk add --update gcc
+ ---> Using cache
+ ---> 265253d750a9
+Step 4/4 : CMD ["redis-server"]
+ ---> Using cache
+ ---> 19854053470b
+Successfully built 19854053470b
+```
+
+### Tagging an Image
+`docker build -t <your-dockerid>/<your-project-name>:<version>`
+Example:
+
+```
+>>>docker build -t aish/docker_example:latest .
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM alpine
+ ---> 961769676411
+Step 2/4 : RUN apk add --update redis
+ ---> Using cache
+ ---> 527f32af8c21
+Step 3/4 : RUN apk add --update gcc
+ ---> Using cache
+ ---> 265253d750a9
+Step 4/4 : CMD ["redis-server"]
+ ---> Using cache
+ ---> 19854053470b
+Successfully built 19854053470b
+Successfully tagged aish/docker_example:latest
+```
+
+You can run either:
+
+- You can either run `docker run aish/docker_example` automatically runs the latest version
+- Or `docker run aish/docker_example:<specific-version>` runs the specific version
 
 
 
+### 'Manual' Image Generation (docker commit)
+Example:
 
+```
+>>>docker run -it alpine sh
+>>>/ # apk add --update redis
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/community/x86_64/APKINDEX.tar.gz
+(1/1) Installing redis (5.0.5-r0)
+Executing redis-5.0.5-r0.pre-install
+Executing redis-5.0.5-r0.post-install
+Executing busybox-1.30.1-r2.trigger
+OK: 7 MiB in 15 packages
+>>>/ # 
+```
+In another cli window:
 
+```
+>>>docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+c4a323a09a58        alpine              "sh"                47 seconds ago      Up 46 seconds                           nifty_hypatia
 
-
+>>>docker commit -c'CMD ["redis-server"]' c4a323a09a58
+sha256:5ed81e065c6b18fbf0f0f6e01202b76c94bdcc7a6420206268c1b7e055d8c98d
+```
 
