@@ -1,5 +1,13 @@
 # Docker
 This repository is a work-in-progress that will hold onto tutorials, cheatsheets, tips and best practices related to Docker and Kubernetes (and a bit of Travis CI and AWS). It is based largely on this awesome [Udemy course](https://www.udemy.com/docker-and-kubernetes-the-complete-guide/)
+
+You can find some examples here:
+
+ - [A simple container from a base image (redis)](https://github.com/aishwaryaprabhat/docker_and_kubernetes_essentials/tree/master/docker/redis-image)
+- [Example of a containerized simple web app using Node JS](https://github.com/aishwaryaprabhat/docker_and_kubernetes_essentials/tree/master/docker/simpleweb)
+
+General commands and best practices are in this README below:
+ 
 ## Background
 ### Why Docker?
 
@@ -309,3 +317,85 @@ c4a323a09a58        alpine              "sh"                47 seconds ago      
 sha256:5ed81e065c6b18fbf0f0f6e01202b76c94bdcc7a6420206268c1b7e055d8c98d
 ```
 
+### Base image issues
+If base image does not have the necessary dependencies, find the appropriate image on hub.docker.com or build your own by putting in installation commands.
+
+To install a specific version of a base image, you can specify the version in the Dockerfile. For example:
+
+```
+#Dockerfile
+FROM node:6.14
+
+RUN .....
+```
+
+An `alpine` version of a base image is the absolute stripped down version. For example `node:alpine` is an image with just node and some very basic stuff that comes along with alpine. 
+
+
+### Copying files
+`COPY <path-to-src> <path-to-dest>`
+
+`<path-to-src>` is relative to build context (something like present working directory)
+
+### Container Port Mapping
+Port in the container is not the same as the port on the machine on which the container is running. So, to reach the port in the container we need a mapping between the two ports. However the port forwarding is a runtime issue so we do not specify the port forwarding in the Dockerfile. Instead, we specify the port forwarding in the `docker run` command as such:
+```
+docker run -p 8080:8080 <image-id>
+```
+
+### Specifying a Workind Directory inside the container
+When we simply copy using `COPY ./ ./` in the dockerfile, it can conflict with the files and directories inside the container. So it is a good idea to specify a directory and proper project structure for an image/container. 
+
+This can be solved using `WORKDIR /usr/app`. `usr/app` is generally a good place to put your app. If the directory exists, then it will copy the files there, else it will create necessary directories.
+
+### Minimizing Cache Bursting and Rebuilds when changes made in files
+A neat trick to avoid cache bursting and rebuilding the image is to copy the files that are unlikely to change - especially those necessary for installing dependencies. Then place the `COPY` command, which will replace the file that has been changed, strategically after all the dependency installation commands. For example, lets say we have the following dockerfile:
+
+```
+#Specify a base image
+
+FROM node:alpine
+
+#Ensure there is 
+WORKDIR /usr/app
+
+#Copy important files
+COPY ./ ./
+
+#Install some dependencies
+RUN npm install
+
+
+#Default command
+CMD ["npm","start"]
+
+#docker build -t aish/simpleweb .
+#docker run -p 8080:8080 aish/simpleweb
+```
+
+And we make changes to the file `index.json`. When we rebuild the image, it will build everything again instead of using cache because there are changes from `COPY ./ ./` down. Instead we can simply do the following:
+
+```
+#Specify a base image
+
+FROM node:alpine
+
+#Ensure there is 
+WORKDIR /usr/app
+
+COPY ./package.json ./
+
+#Install some dependencies
+RUN npm install
+
+#Copy everything else
+COPY ./ ./
+
+#Default command
+CMD ["npm","start"]
+
+#docker build -t aish/simpleweb .
+#docker run -p 8080:8080 aish/simpleweb
+```
+
+In this case, when we rebuild the image, only the `COPY ./ ./` will not be using the cache.
