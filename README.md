@@ -193,7 +193,7 @@ Successfully built cf77bdfe2f66
 ![](readme_images/base1.png)
 ![](readme_images/base2.png)
 
-
+To build from a specific file we use `docker build -f <name-of-specific-file> .`
 
 ### Rebuilding an image from cache
 If some parts of the docker build process are the same as an image built previously, Docker will use commands from the cached version of the previously built image. The building process only builds from the changed line down.
@@ -469,3 +469,45 @@ services:
 
 ### Checking container status
 Like `docker ps` we can run `docker-compose ps`. However, `docker-compose ps` should be run from the working directory where the `docker-compose.yml` is present. 
+
+
+### Docker Volumes
+Similar to port fowarding, using docker volumes is a mapping from files/folders in the container to files/folders on the local machine.
+
+`docker run -v /app/node_modules -v $(pwd):/app <image-id>`
+
+![](readme_images/volumes.png)
+
+The `-v /app/node_modules` part of the command is to tell docker to use these directory and files from within the container instead of using a reference from the local machine.
+
+To run volumes using docker compose, write your `docker-compose.yml` as such:
+
+```
+version: '3'
+services:
+  web:
+    build: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - /app/node_modules 
+      - .:/app
+```
+
+### Overriding Dockerfile Selection in docker-compose.yml
+```
+version: '3'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - /app/node_modules 
+      - .:/app
+```
+
+
+
