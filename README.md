@@ -5,6 +5,7 @@ You can find some examples here:
 
  - [A simple container from a base image (redis)](https://github.com/aishwaryaprabhat/docker_and_kubernetes_essentials/tree/master/docker/redis-image)
 - [Example of a containerized simple web app using Node JS](https://github.com/aishwaryaprabhat/docker_and_kubernetes_essentials/tree/master/docker/simpleweb)
+- [Example of multi-container Node JS app](https://github.com/aishwaryaprabhat/docker_and_kubernetes_essentials/tree/master/docker/visits_multi_container)
 
 General commands and best practices are in this README below:
  
@@ -399,3 +400,48 @@ CMD ["npm","start"]
 ```
 
 In this case, when we rebuild the image, only the `COPY ./ ./` will not be using the cache.
+
+
+## Multi-Container Applications using Docker Compose
+
+### Docker Compose
+- Docker compose is a separate CLI that gets installed with Docker
+- It is used to start up multiple Docker containers at the same time
+- Automates some of the long-winded arguments we were passing to `docker run`
+
+The `docker-compose.yml` is used to configure the containers. For example:
+![](readme_images/dcompose.png)
+
+```
+version: '3'
+services:
+  redis-server:
+    image: 'redis'
+  node-app:
+    build: .
+    ports:
+      - "4001:8081"
+```
+
+- `version: '3'` specifies the version of docker compose we want to use
+- `services` essentially refers to containers we want to build
+- `redis-server:
+    image: 'redis'` tells docker to build a new container (service) using the image `redis`
+- `node-app:
+    build: .` tells docker to build a new container (service) using the Dockerfile in the working directory
+- `ports: - "4001:8081"`  tells docker to map port 4001 of local machine to port 8081 of container
+
+### Networking with Docker Compose
+By using containers within one docker compose environment, the containers share a network and we don't have to do any additional steps to connect tqo or more containers.
+
+### Docker Compose Commands
+`docker-compose up` similar to `docker build .`
+
+Comparison with `docker run` and `docker build`:
+![](readme_images/dcomp2.png)
+
+### Launching and stopping containers in the background
+
+- `docker-compose up -d`
+- `docker-compose down`
+
