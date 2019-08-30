@@ -435,7 +435,7 @@ services:
 By using containers within one docker compose environment, the containers share a network and we don't have to do any additional steps to connect tqo or more containers.
 
 ### Docker Compose Commands
-`docker-compose up` similar to `docker build .`
+`docker-compose up` similar to `docker build .`+`docker run <image-name>`
 
 Comparison with `docker run` and `docker build`:
 ![](readme_images/dcomp2.png)
@@ -445,3 +445,27 @@ Comparison with `docker run` and `docker build`:
 - `docker-compose up -d`
 - `docker-compose down`
 
+
+### Automatic Container Restarts 
+Restart policies:
+![](readme_images/conrest.png)
+
+We can program this restart policy in the `docker-compose.yml` file as such:
+
+```
+version: '3'
+services:
+  redis-server:
+    image: 'redis'
+  node-app:
+    restart: always
+    build: .
+    ports:
+      - "4001:8081"
+```
+- no policy: it is the default policy. If we want to add it into the `docker-copmpose.yml` file, we can add the line `restart: "no"` the single/double quotes are important because `no` means something else in the yml file.
+- always policy: good to have if running a web-server 
+- on-failure policy:if some worker process is running and it faces an error, good to let it die
+
+### Checking container status
+Like `docker ps` we can run `docker-compose ps`. However, `docker-compose ps` should be run from the working directory where the `docker-compose.yml` is present. 
