@@ -509,5 +509,97 @@ services:
       - .:/app
 ```
 
+### Multi-step Docker Builds
+We can build an image from multiple base images using a multi-step approach as such:
+![](readme_images/mbuild.png)
+
+```
+FROM node:alpine as builder
+
+WORKDIR '/app'
+
+COPY package.json .
+RUN npm install
+COPY . .
+
+RUN npm run build
+
+FROM nginx
+COPY --from=builder /app/build /usr/share/nginx/html
+```
+
+# Travis CI
+![](readme_images/travis1.png)
+
+- Travis CI watches any pushes to Git
+- Travis CI pulls all the code in the repo
+- It can then:
+	- Test
+	- Deploy
+	- Etc.
+
+### Travis CI Config for Testing
+![](readme_images/travis2.png)
+
+`.travis.yml` 
+
+```
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t aish/docker-react -f Dockerfile.dev .
+
+script:
+  - docker run aish/docker-react npm run test -- --coverage
+```
 
 
+### Travis CI Config for Deployment
+
+```
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t aish/docker-react -f Dockerfile.dev .
+
+script:
+  - docker run aish/docker-react npm run test -- --coverage
+
+deploy:
+  provider: elasticbeanstalk
+  region: "us-east-1"
+  app: "docker-react"
+  env: "DockerReact-env"
+  bucket_name: "elasticbeanstalk-us-east-1-015820542059"
+  bucket_path: "docker-react"
+  on:
+    branch: master
+
+  access_key_id:
+    secure: $AWS_ACCESS_KEY
+  secret_access_key:
+    secure: "$AWS_SECRET_KEY"
+
+```
+
+
+<!--# Kubernetes
+
+## Overview
+### What is Kubernetes? Why Kubernetes?
+System for running many different containers over multiple different machines. 
+
+We need kubrenetes in a scenario where we need to run many different containers with different images. In the case that an application only relies on one kind of container, Kubernetes may not necessarily be the right solution.
+A typical Kubernetes architecture looks like this:
+![](readme_images/k8.png)
+
+### Minikube Architecture
+![](readme_images/k81.png)
+
+### 'Mapping' from Docker Compose to Kubernetes
+![](readme_images/k82.png)
+-->
