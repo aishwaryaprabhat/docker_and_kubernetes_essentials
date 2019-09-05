@@ -587,7 +587,7 @@ deploy:
 ```
 
 
-<!--# Kubernetes
+# Kubernetes
 
 ## Overview
 ### What is Kubernetes? Why Kubernetes?
@@ -602,4 +602,91 @@ A typical Kubernetes architecture looks like this:
 
 ### 'Mapping' from Docker Compose to Kubernetes
 ![](readme_images/k82.png)
--->
+
+### Config Files in K8s
+While in Docker we use the config file (Dockerfile or docker-compose file) to create containers, in K8s we use config file to create objects.
+
+![](readme_images/configgile.png)
+
+
+### Pod
+
+- A pod is a smallest unit object in K8s. 
+- It is a grouping of containers with a common purpose. 
+- In K8s we don't deal with one naked single container by itself. 
+- The smallest thing we can deploy is a pod. A pod must have 1 or more contianers inside of it. 
+- Containers in a pod should be tightly related to each other. In the example below, the logger and backup-manager containers depend on the postgres container and hence belong in the same pod. 
+![](readme_images/containers.png)
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client-pod
+  labels:
+    component: web
+spec:
+  containers:
+    - name: client
+      image: aishpra/fib-client
+      ports:
+      - containerPort: 3000
+```
+
+- apiVersion: scopes or limits the types of objects we can use in a given config file
+- kind: type of object that is being defined in the config file, in this case a Pod
+- metadata: all the information about the pod itself
+	- name: tag used for kubectl and logging etc.
+	- labels: useful for Services
+- containers: the config of the containers inside the pod
+	- name: is a tag used to refer to the specific container, useful for tagging and networking
+	- image: the image that the container is going to be made out of
+	- ports: config related to ports of the container
+		- containerPort: the port of the container that will be exposed
+
+### Services
+
+- Sets up networking in a K8s CLuster
+- There are 4 different kinds of services ClusterIP, NodePort, LoadBalancer and Ingress
+
+![](readme_images/nodeport.png)
+
+### NodePort
+
+- NodePort exposes a contianer to the outside world
+- Typically used only for development purposes and not in production 
+
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-node-port
+spec:
+  type: NodePort
+  ports:
+    - port: 3050
+      targetPort: 3000
+      nodePort: 31515
+  selector:
+    component: web
+```
+
+- spec: config related to the Service
+- type: either ClusterIP, NodePort, LoadBalancer and Ingress
+	- ports: config related to the ports
+		- port: the port used by other pods to communicate to a specific pod
+		- targetPort: connects to the port that is exposed on a pod that this service is related to
+		- nodePort: exposed to the outside world. If not defined, assigned a random value.
+		![](readme_images/nodeport2.png)
+	- selector: config related to labels of pods. It looks for a key value pair to forward traffic to
+		-  	component: completely arbitrary name, maps to the "labels: component: web" proprty in example pod config file
+
+
+## Kubernetes Commands
+
+- `kubectl apply -f <filename>`: change the current configuration of our cluster
+- `kubectl get <object>`: gets status of all objects
+
+
+
