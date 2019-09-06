@@ -600,6 +600,9 @@ A typical Kubernetes architecture looks like this:
 ### Minikube Architecture
 ![](readme_images/k81.png)
 
+![](readme_images/imp.png) 
+
+
 ### 'Mapping' from Docker Compose to Kubernetes
 ![](readme_images/k82.png)
 
@@ -644,10 +647,71 @@ spec:
 	- ports: config related to ports of the container
 		- containerPort: the port of the container that will be exposed
 
+### Deployment
+
+Very fiew fields in a Pod config can be changed/updated
+
+![](readme_images/pod_limit.png)
+
+- A deployment maintains a set of identical pods, ensuring that they have the correct config and that the right number exists.
+- It continuously watches all the pods related to itself and ensures that they are in the right state
+- When a change is made in the deployment config, either the pods are altered or killed and a new one created
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-deployment
+spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        component: web
+    template:
+      metadata:
+        labels:
+          component: web
+      spec:
+        containers:
+          - name: client-deployment
+            image: aish/fib-client
+            ports:
+              - containerPort: 3000
+```
+
+- apiVersion: scopes or limits the types of objects we can use in a given config file
+- kind: type of object that is being defined in the config file, in this case a Deployment
+- metadata: all the information about the deployment itself
+- spec: specifications related tp tje deployment
+	- replicas: number of identical pods to create
+	- selector and labels: handles for 'connecting' deployment and pod
+		![](readme_images/selector.png)
+	- template: template of the pod
+
+
+
+#### Differene between Pod and Deployment
+
+![](readme_images/diff.png)
+
+
+#### How to update image in a deployment
+
+3 different ways of doing so:
+
+1. Manually delete pods to get the deployment to recreate them with the latest version
+2. Tag built images with a real version number and specify that version in the config file
+3. (Recommended) Use an imperative command to update the image version the deployment should use 
+
+![](readme_images/update_image.png)
+
+`kubectl set image <object-type>t/<object-name> <container-name>=<new-image-to-use>`
+
 ### Services
 
 - Sets up networking in a K8s CLuster
 - There are 4 different kinds of services ClusterIP, NodePort, LoadBalancer and Ingress
+- We need services because pods get deleted and updated in the nodes all the time, so services help us watch the pods which match its selector and automatically route traffic to them even though their IP adress might change during update
 
 ![](readme_images/nodeport.png)
 
@@ -672,6 +736,9 @@ spec:
     component: web
 ```
 
+- apiVersion: scopes or limits the types of objects we can use in a given config file
+- kind: type of object that is being defined in the config file, in this case a Service
+- metadata: all the information about the service itself
 - spec: config related to the Service
 - type: either ClusterIP, NodePort, LoadBalancer and Ingress
 	- ports: config related to the ports
@@ -683,10 +750,46 @@ spec:
 		-  	component: completely arbitrary name, maps to the "labels: component: web" proprty in example pod config file
 
 
-## Kubernetes Commands
+### Change current configuration of cluster
+`kubectl apply -f <filename>`
 
-- `kubectl apply -f <filename>`: change the current configuration of our cluster
-- `kubectl get <object>`: gets status of all objects
+### Get status of objects
+`kubectl get <object>`
+
+### Describing contents of an object
+`kubectl describe <object> <object-name>`
+
+### Deleting an object (imperative)
+`kubectl delete -f <filename>`
+
+### Imperative vs Declarative Deployments (using image as an example)
+
+`kubectl set image <object-type>t/<object-name> <container-name>=<new-image-to-use>`
+
+![](readme_images/imperative.png)
+![](readme_images/imperative2.png)
+
+### Updating Existing Objects (Declarative)
+![](readme_images/update.png)
+
+When we make a change to any config file and then use `kubectl apply -f <filename>` the Master node looks for the name and kind in the config file to ensure that there exists such an object and then it updates the object with the changed config file.
+
+### How to 'talk' to Docker inside minikube
+
+`eval $(minikube docker-env)`
+![](readme_images/dockerenv.png)
+![](readme_images/dockerenv2.png)
+
+
+
+
+
+
+
+
+
+
+
 
 
 

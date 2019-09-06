@@ -7,6 +7,6 @@ metadata:
 spec:
   containers:
     - name: client
-      image: aishpra/fib-client
+      image: aishpra/fib-worker
       ports:
       - containerPort: 3000
