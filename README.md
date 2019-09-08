@@ -749,6 +749,30 @@ spec:
 	- selector: config related to labels of pods. It looks for a key value pair to forward traffic to
 		-  	component: completely arbitrary name, maps to the "labels: component: web" proprty in example pod config file
 
+### ClusterIP
+
+A ClusterIp is what allows a group of objects interact with one another. It is like. NodePort, in that it exposes a pod/set of pods but unlike a NodePort it does not allow access from the outside world. 
+
+![](readme_images/clusterip.png)
+
+
+Example:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-cluster-ip-service
+spec:
+  type: ClusterIP 
+  selector:
+    component: web
+  ports:
+    - port: 3000
+      targetPort: 3000
+```
+
+
 
 ### Change current configuration of cluster
 `kubectl apply -f <filename>`
