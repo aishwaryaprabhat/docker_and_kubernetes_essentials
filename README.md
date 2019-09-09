@@ -28,9 +28,6 @@ Hello-world| Run Hello-World
 - Container: Instance of an image that runs a program. More specifically, it is a process or group of processes with a grouping of resources assigned to it. When `docker run <image-name>` is run, the file system snapshot is 'copied' into the hard disk and the processes associated with the container are run. Two containers do not share the same filespace.
 
 
-
-
-
 ### What are Docker Client and Docker Server?
 - Docker Client: A command-line interface to which we issue commands
 - Docker Server: A Docker Daemon/Tool responsible for creating and running images behind the scenes
@@ -768,11 +765,232 @@ spec:
   selector:
     component: web
   ports:
-    - port: 3000
-      targetPort: 3000
+    - port: 5000
+      targetPort: 5000
+```
+- port: port used to communicate with this ClusterIP object
+- targetPort: port to which the requests are directed, typically will match the exposed port of the deployment
+
+![](readme_images/ports23.png) 
+
+### LoadBalancer
+Legacy way of getting network traffic into a cluster.
+
+- Allows access to a specific set of pods
+- Sets up usage of native load-balancer (eg on AWS it will use the AWS LB)
+![](readme_images/lb.png) 
+
+### Ingress
+
+ - Exposes a set of services to the outside world
+ - It has several different implementations eg: ingress-nginx
+ - Setup of ingress-nginx changes depending on the environment
+
+![](readme_images/ingress.png) 
+![](readme_images/ingress1.png) 
+![](readme_images/ingress2.png) 
+
+```
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-service
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingess.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: client-cluster-ip-service
+              servicePort: 3000
+          - path: /api/
+            backend:
+              serviceName: server-cluster-ip-service
+              servicePort: 5000
 ```
 
 
+
+### Volumes in K8s
+
+#### Why might we need volumes?
+
+For example in the case of a Postgres, if we create a deployment with a single pod and container, if the container crashes then a new one will be created. Even though a new contianer will be created, all the data stored in the previous container will be lost. Hence, we need a place to write this data into a file for availability of data. 
+
+#### What is a volume?
+An object that allows a container to store data at the pod level.
+For exampe:
+![](readme_images/k8svolume.png)
+
+In the event that a container in the pod crashes, another container will be created and it can have the 'backup' of the data in the form of the files stored in pod level volumes. However, this still leaves the system vulnerable to data loss in the event that the pod itself crashes.
+
+### Persistent Volume
+
+Similar to volume but the persistent volume is outside the pod. A persistent volume will help to have 'backup' of data in the event that a pod crashes.
+![](readme_images/k8svolume2.png)
+
+### Persistent Volume Claim
+A persistent volume claim is a 'billboard advertisement' of the available memory options. A persistent volume claim is not an actual instance of storage. It is something we attach to a config to avail a persistent volume. There are two kinds of volumes that can be provisioned:
+
+- Statically Provisioned Persistent Volume: Already created ahead of time
+- Dynamically provisioned Persistent Volume: Created when requested by user through Pod Config
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: database-persistent-volume-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName:
+```
+- accessModes: three different kinds of access modes
+![](readme_images/k8svolume3.png)
+- storage: requesting exactly 2 GB of space
+
+Example of deployment file:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: postgres
+  template:
+    metadata:
+      labels:
+        component: postgres 
+    spec:
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: database-persistent-volume-claim
+      containers:
+        - name: postgres
+          image: postgres 
+          ports:
+            - containerPort: 5432
+          volumeMounts: 
+            - name: postgres-storage
+              mountPath: /var/lin/postgresql/data
+              subPath: postgres
+```
+- volumes: 
+	- name
+	- persistentVolumeClaim: this part of the config reached out to K8s to let it know that storage resources need to be allocated as specified in the file corresponding to claimName.
+- volumeMounts:
+	- name: matches the name specified under spec/volumes
+	- mountPath: where in the container should the data be stored
+	- subPath: a subfolder to store the data. Quite specific to postgres
+
+	
+#### Where does K8s allocate persistent volumes?
+On your personal computer:
+![](readme_images/k8svolume4.png)
+
+You can check available options available using `kubectl get storageclass` or `kubectl describe storageclass`
+![](readme_images/k8svolume5.png)
+
+- storageClassName: used to point to where the volume storage will be allocated. Can be left out and let K8s use the default.
+
+### Secret
+
+Securely stores a piece of information in the cluster, such as a database password.
+
+`kubectl create secret generic <secret-name> --from-literal key=value`
+- generic cna also be docker-registry or tls
+- The corresponding config file looks like:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+spec:
+  replicas: 3
+  selector:
+      matchLabels:
+        component: server
+  template:
+    metadata:
+      labels:
+        component: server
+    spec:
+      containers:
+        - name: server
+          image: stephengrider/multi-server
+          ports:
+              - containerPort: 5000
+          env:
+            - name: REDIS_HOST
+              value: redis-cluster-ip-service
+            - name: REDIS_PORT
+              value: 6379
+            - name: PGUSER
+              value: postgres
+            - name: PGHOST
+              value: postgres-cluster-ip-service
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pgpassword 
+                  key: PGPASSWORD
+```
+
+## Other useful K8s information/commands
+
+### Adding Environment Variables to Config
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+spec:
+  replicas: 3
+  selector:
+      matchLabels:
+        component: server
+  template:
+    metadata:
+      labels:
+        component: server
+    spec:
+      containers:
+        - name: server
+          image: stephengrider/multi-server
+          ports:
+              - containerPort: 5000
+          env:
+            - name: REDIS_HOST
+              value: redis-cluster-ip-service
+            - name: REDIS_PORT
+              value: 6379
+            - name: PGUSER
+              value: postgres
+            - name: PGHOST
+              value: postgres-cluster-ip-service
+            - name: PGPORT
+              value: 5432
+            - name: PGDATABASE
+              value: postgres
+
+```
 
 ### Change current configuration of cluster
 `kubectl apply -f <filename>`
@@ -804,7 +1022,50 @@ When we make a change to any config file and then use `kubectl apply -f <filenam
 ![](readme_images/dockerenv.png)
 ![](readme_images/dockerenv2.png)
 
+### Applying multiple files with kubectl
+To apply a group of config files use `kubectl apply -f <directory-name>`
 
+### Combining config files into one file
+
+Use `---`
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-cluster-ip-service
+spec:
+  type: ClusterIP
+  selector:
+    component: server 
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+spec:
+  replicas: 3
+  selector:
+      matchLabels:
+        component: server
+  template:
+    metadata:
+      labels:
+        component: server
+    spec:
+      conatiners:
+        - name: server
+          image: stephengrider/multi-server
+          ports:
+              - containerPort: 5000
+              
+```
+
+### What is a controller?
+A controller is an object that constantly works to ensure that the state of the cluster adheres to the changes in the config. Eg: deployment, ingress controller.
 
 
 
