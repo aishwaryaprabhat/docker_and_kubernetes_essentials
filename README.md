@@ -704,6 +704,12 @@ spec:
 
 `kubectl set image <object-type>t/<object-name> <container-name>=<new-image-to-use>`
 
+A neat trick to use 
+![](readme_images/upddep.png)
+
+Advantage of using GIT_SHA:
+![](readme_images/upddep2.png)
+
 ### Services
 
 - Sets up networking in a K8s CLuster
@@ -1066,6 +1072,12 @@ spec:
 
 ### What is a controller?
 A controller is an object that constantly works to ensure that the state of the cluster adheres to the changes in the config. Eg: deployment, ingress controller.
+
+
+### RBAC
+![](readme_images/rbac.png)
+![](readme_images/rbac2.png)
+![](readme_images/rbac3.png)
 
 
 
